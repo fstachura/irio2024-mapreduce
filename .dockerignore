@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.env
+.env.*
+.*.*env
+env/
+[._]*.s[a-z][a-z]
+
+*_pb2.py
+*_pb2_grpc.py
