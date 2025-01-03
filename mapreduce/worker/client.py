@@ -18,10 +18,10 @@ def client():
             stepId="stepIdPlaceholder"
         )
         startStepReply = stub.StartStep(startStepRequest)
-        print("StartStep(..): " + str(startStepReply.ok))
+        print("StartStep(..):\n" + str(startStepReply))
 
         nodeStatusReply = stub.NodeStatus(mapreduce_pb2.Empty())
-        print("NodeStatus(): " + str(nodeStatusReply.status))
+        print("NodeStatus():\n" + str(nodeStatusReply))
 
 if __name__ == "__main__":
     logging.basicConfig()
