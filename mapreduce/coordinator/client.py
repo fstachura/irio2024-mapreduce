@@ -4,7 +4,6 @@ import grpc
 
 from ..grpc import mapreduce_pb2
 from ..grpc import mapreduce_pb2_grpc
-from ..grpc.mapreduce_pb2_grpc import NodeAPI, UserAPIServicer
 
 def client():
     if len(sys.argv) != 2:
