@@ -1,10 +1,15 @@
 import logging
+import sys
 import grpc
 from ..grpc import mapreduce_pb2
 from ..grpc import mapreduce_pb2_grpc
 
 def client():
-    with grpc.insecure_channel("localhost:50051") as channel:
+    if len(sys.argv) != 2:
+        print("usage: ", sys.argv[0], "host:port")
+        return
+
+    with grpc.insecure_channel(sys.argv[1]) as channel:
         stub = mapreduce_pb2_grpc.NodeAPIStub(channel)
 
         startStepRequest = mapreduce_pb2.StartStepRequest(

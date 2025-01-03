@@ -1,5 +1,6 @@
 from concurrent import futures
 import logging
+import os
 import grpc
 from ..grpc import mapreduce_pb2
 from ..grpc import mapreduce_pb2_grpc
@@ -7,11 +8,11 @@ from ..grpc.mapreduce_pb2_grpc import NodeAPIServicer
 
 class NodeAPIServicerImpl(NodeAPIServicer):
     def StartStep(self, request, context):
-        print("StartStep request:\n" + str(request))
+        logging.info("StartStep request:\n" + str(request))
         return mapreduce_pb2.StartStepReply(ok=True)
     
     def NodeStatus(self, request, context):
-        print("NodeStatus request: " + str(request))
+        logging.info("NodeStatus request: " + str(request))
         status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Ok
         return mapreduce_pb2.NodeStatusReply(status=status)
 
@@ -20,7 +21,8 @@ def serve():
     mapreduce_pb2_grpc.add_NodeAPIServicer_to_server(
         NodeAPIServicerImpl(), server
     )
-    server.add_insecure_port("[::]:50051")
+    port = os.environ.get("HTTP_PORT", "[::]:50051")
+    server.add_insecure_port(port)
     server.start()
     server.wait_for_termination()
 
