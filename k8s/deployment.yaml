@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coordinator
+  labels:
+    type: coordinator
+spec:
+  selector:
+    matchLabels:
+      type: coordinator
+  template:
+    metadata:
+      labels:
+        type: coordinator
+    spec:
+      hostname: "coordinator"
+      containers:
+      - name: coordinator
+        image: "us-central1-docker.pkg.dev/mapreduce-irio/main/mapreduce:dev"
+        imagePullPolicy: Always
+        command: ["python3"]
+        args: ["-m", "mapreduce.coordinator.server"]
+        ports:
+        - containerPort: 8091
+        env:
+        - name: HTTP_PORT
+          value: "[::]:8091"
+        - name: NODE_PORT
+          value: "50051"
+        - name: NODES_ADDR
+          value: "worker.default.svc.cluster.local"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    type: worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      type: worker
+  template:
+    metadata:
+      labels:
+        type: worker
+    spec:
+      hostname: "worker"
+      containers:
+      - name: worker
+        image: "us-central1-docker.pkg.dev/mapreduce-irio/main/mapreduce:dev"
+        imagePullPolicy: Always
+        command: ["python3"]
+        args: ["-m", "mapreduce.worker.server"]
+        ports:
+        - containerPort: 50051
