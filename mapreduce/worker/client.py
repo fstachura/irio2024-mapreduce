@@ -24,5 +24,5 @@ def client():
         print("NodeStatus():\n" + str(nodeStatusReply))
 
 if __name__ == "__main__":
-    logging.basicConfig()
+    logging.basicConfig(level=logging.INFO)
     client()
