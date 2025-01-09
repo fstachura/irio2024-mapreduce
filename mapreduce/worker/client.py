@@ -13,8 +13,8 @@ def client():
         stub = mapreduce_pb2_grpc.NodeAPIStub(channel)
 
         startStepRequest = mapreduce_pb2.StartStepRequest(
-            inputLocation="inputLocationPlaceholder",
-            outputLocation="outputLocationPlaceholder",
+            inputLocation="irio_test:input_test",
+            outputLocation="irio_test:output_test",
             stepId="stepIdPlaceholder"
         )
         startStepReply = stub.StartStep(startStepRequest)

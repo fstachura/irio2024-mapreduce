@@ -5,10 +5,27 @@ import grpc
 from ..grpc import mapreduce_pb2
 from ..grpc import mapreduce_pb2_grpc
 from ..grpc.mapreduce_pb2_grpc import NodeAPIServicer
+from google.cloud import storage
 
 class NodeAPIServicerImpl(NodeAPIServicer):
     def StartStep(self, request, context):
         logging.info("StartStep request:\n" + str(request))
+
+        storage_client = storage.Client()
+
+        input_bucket_name, input_file_name = request.inputLocation.split(':')
+        output_bucket_name, output_file_name = request.outputLocation.split(':')
+
+        input_bucket = storage_client.bucket(input_bucket_name)
+        input_file = input_bucket.blob(input_file_name)
+
+        output_bucket = storage_client.bucket(output_bucket_name)
+        output_file = output_bucket.blob(output_file_name)
+
+        with input_file.open("r") as r, output_file.open("w") as w:
+            w.write(str(request))
+            w.write(r.read())
+
         return mapreduce_pb2.StartStepReply(ok=True)
     
     def NodeStatus(self, request, context):
