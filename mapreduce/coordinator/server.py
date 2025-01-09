@@ -9,6 +9,7 @@ from google.protobuf.empty_pb2 import Empty
 from ..proto.coordinator_pb2 import LastJobStatusReply
 from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
 from ..proto.worker_pb2_grpc import WorkerServiceStub
+from .database import connect_to_db
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
     def StartJob(self, request, context):
@@ -42,6 +43,8 @@ def serve():
         executor.submit(check_nodes, nodes_addr, node_port)
 
         port = os.environ.get("HTTP_PORT", "[::]:50001")
+        db = connect_to_db()
+
         server = grpc.server(executor)
         add_CoordinatorServiceServicer_to_server(
             CoordinatorServiceServicerImpl(), server
