@@ -1,1 +1,2 @@
 grpcio-tools~=1.68.1
+dnspython~=2.7.0
