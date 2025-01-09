@@ -29,6 +29,24 @@ spec:
           value: "50051"
         - name: NODES_ADDR
           value: "worker.default.svc.cluster.local"
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: "db-secrets"
+              key: username
+        - name: DB_PASS
+          valueFrom:
+            secretKeyRef:
+              name: "db-secrets"
+              key: password
+        - name: DB_HOST
+          value: "sql-proxy.default.svc.cluster.local"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: "db-secrets"
+              key: database
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -55,3 +73,48 @@ spec:
         args: ["-m", "mapreduce.worker.server"]
         ports:
         - containerPort: 50051
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-proxy
+  labels:
+    type: sql-proxy
+spec:
+  selector:
+    matchLabels:
+      type: sql-proxy
+  template:
+    metadata:
+      labels:
+        type: sql-proxy
+    spec:
+      hostname: "sql-proxy"
+      containers:
+        - name: "sql-proxy"
+          env:
+            - name: "DB_USER"
+              valueFrom:
+                secretKeyRef:
+                  name: "db-secrets"
+                  key: username
+            - name: "DB_PASS"
+              valueFrom:
+                secretKeyRef:
+                  name: "db-secrets"
+                  key: password
+            - name: "DB_NAME"
+              valueFrom:
+                secretKeyRef:
+                  name: "db-secrets"
+                  key: database
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.14.1
+          args:
+            - "--auto-iam-authn"
+            - "--structured-logs"
+            - "--port=5432"
+            - "--address=0.0.0.0"
+            - "mapreduce-irio:us-central1:mapreduce-dev"
+          securityContext:
+            runAsNonRoot: true
+
