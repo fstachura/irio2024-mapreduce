@@ -1,8 +1,48 @@
 import os
 import logging
+from typing import List
+import uuid
+import enum
 import sqlalchemy
+from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
+
+class Base(DeclarativeBase):
+    pass
+
+# Each node has UUID, UUID is generated on start
+# In a loop query nodes returned by k8s DNS for map node uuid:(part, state)
+# If the difference between UUIDs from JobPart of current step and returned UUIDs is not empty,
+#   assign job parts of missing nodes to new nodes
+
+# Tracks part execution and which node executes what
+class JobPart(Base):
+    __tablename__ = "job_part"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    input_location: Mapped[str] = mapped_column()
+    output_location: Mapped[str] = mapped_column()
+    finished: Mapped[bool] = mapped_column(Boolean())
+    job_id: Mapped[int] = mapped_column(ForeignKey("job.id"))
+    executor_node_uuid: Mapped[UUID] = mapped_column(UUID(as_uuid=True))
+
+class JobStatus(enum.Enum):
+    in_progress = "IN_PROGRESS"
+    finished = "FINISHED"
+    failed = "FAILED"
+
+# Tracks started jobs
+class Job(Base):
+    __tablename__ = "job"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    input_location: Mapped[str] = mapped_column(String())
+    job_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
+    job_status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.in_progress)
+    current_step: Mapped[str] = mapped_column()
+    parts: Mapped[List["JobPart"]] = relationship()
 
 def connect_to_db() -> sqlalchemy.engine.base.Engine:
     engine = sqlalchemy.engine.url.URL.create(
