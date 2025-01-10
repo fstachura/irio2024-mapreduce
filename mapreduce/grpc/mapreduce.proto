@@ -42,6 +42,7 @@ message StartStepRequest {
 
 message StartStepReply {
     bool ok = 1;
+    string workerUuid = 2;
 }
 
 message NodeStatusReply {
@@ -53,4 +54,5 @@ message NodeStatusReply {
     }
     NodeStatusEnum status = 1;
     string errorMessage = 2;
+    string workerUuid = 3;
 }
