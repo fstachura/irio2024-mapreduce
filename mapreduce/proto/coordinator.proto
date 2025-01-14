@@ -1,0 +1,24 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+service CoordinatorService {
+    rpc StartJob(StartJobRequest) returns (StartJobReply) {}
+    rpc LastJobStatus(google.protobuf.Empty) returns (LastJobStatusReply) {}
+}
+
+message StartJobRequest {
+    string inputLocation = 1;
+}
+
+message StartJobReply {
+    string jobUuid = 1;
+}
+
+message LastJobStatusReply {
+    message JobStatus {
+        string jobUuid = 1;
+        bool finished = 2;
+        // current step? more detailed node status?
+    }
+    JobStatus status = 1;
+}
