@@ -1,9 +1,10 @@
 import logging
 import sys
 import grpc
+from google.protobuf.empty_pb2 import Empty
 
-from ..proto import mapreduce_pb2
-from ..proto import mapreduce_pb2_grpc
+from ..proto import coordinator_pb2
+from ..proto import coordinator_pb2_grpc
 
 def client():
     if len(sys.argv) != 2:
@@ -11,8 +12,8 @@ def client():
         return
 
     with grpc.insecure_channel(sys.argv[1]) as channel:
-        stub = mapreduce_pb2_grpc.UserAPIStub(channel)
-        result = stub.LastJobStatus(mapreduce_pb2.Empty())
+        stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
+        result = stub.LastJobStatus(Empty())
         print("last job uuid:", result.status.jobUuid)
         print("finished:", result.status.finished)
 

@@ -1,0 +1,28 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+service WorkerService {
+    rpc StartStep(StartStepRequest) returns (StartStepReply) {}
+    rpc WorkerStatus(google.protobuf.Empty) returns (WorkerStatusReply) {}
+}
+
+message StartStepRequest {
+    string inputLocation = 1;
+    string outputLocation = 2;
+    string stepId = 3;
+}
+
+message StartStepReply {
+    bool ok = 1;
+}
+
+message WorkerStatusReply {
+    enum WorkerStatusEnum {
+        Unspecified = 0;
+        Ok = 1;
+        Working = 2;
+        Failure = 3;
+    }
+    WorkerStatusEnum status = 1;
+    string errorMessage = 2;
+}
