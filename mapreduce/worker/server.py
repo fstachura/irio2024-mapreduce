@@ -2,9 +2,9 @@ from concurrent import futures
 import logging
 import os
 import grpc
-from ..grpc import mapreduce_pb2
-from ..grpc import mapreduce_pb2_grpc
-from ..grpc.mapreduce_pb2_grpc import NodeAPIServicer
+from ..proto import mapreduce_pb2
+from ..proto import mapreduce_pb2_grpc
+from ..proto.mapreduce_pb2_grpc import NodeAPIServicer
 
 class NodeAPIServicerImpl(NodeAPIServicer):
     def StartStep(self, request, context):
