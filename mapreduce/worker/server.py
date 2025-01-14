@@ -3,9 +3,9 @@ import logging
 import os
 import grpc
 import uuid
-from ..grpc import mapreduce_pb2
-from ..grpc import mapreduce_pb2_grpc
-from ..grpc.mapreduce_pb2_grpc import NodeAPIServicer
+from ..proto import mapreduce_pb2
+from ..proto import mapreduce_pb2_grpc
+from ..proto.mapreduce_pb2_grpc import NodeAPIServicer
 
 class NodeAPIServicerImpl(NodeAPIServicer):
     def __init__(self):
@@ -15,7 +15,7 @@ class NodeAPIServicerImpl(NodeAPIServicer):
     def StartStep(self, request, context):
         logging.info("StartStep request:\n" + str(request))
         return mapreduce_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
-    
+
     def NodeStatus(self, request, context):
         logging.info("NodeStatus request: " + str(request))
         status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Ok
@@ -34,3 +34,4 @@ def serve():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     serve()
+

@@ -5,8 +5,8 @@ from concurrent import futures
 import grpc
 import dns.resolver
 
-from ..grpc.mapreduce_pb2 import LastJobStatusReply, Empty
-from ..grpc.mapreduce_pb2_grpc import NodeAPIStub, UserAPIServicer, add_UserAPIServicer_to_server
+from ..proto.mapreduce_pb2 import LastJobStatusReply, Empty
+from ..proto.mapreduce_pb2_grpc import NodeAPIStub, UserAPIServicer, add_UserAPIServicer_to_server
 
 class UserAPIServicerImpl(UserAPIServicer):
     def StartJob(self, request, context):

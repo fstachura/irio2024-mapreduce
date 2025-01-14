@@ -2,8 +2,8 @@ import logging
 import sys
 import grpc
 
-from ..grpc import mapreduce_pb2
-from ..grpc import mapreduce_pb2_grpc
+from ..proto import mapreduce_pb2
+from ..proto import mapreduce_pb2_grpc
 
 def client():
     if len(sys.argv) != 2:
