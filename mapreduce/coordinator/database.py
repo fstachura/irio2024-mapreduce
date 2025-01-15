@@ -4,7 +4,7 @@ from typing import List
 import uuid
 import enum
 import sqlalchemy
-from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum
+from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum, MetaData, null
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
@@ -24,9 +24,10 @@ class JobPart(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     input_location: Mapped[str] = mapped_column()
     output_location: Mapped[str] = mapped_column()
-    finished: Mapped[bool] = mapped_column(Boolean())
+    step: Mapped[str] = mapped_column()
+    finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     job_id: Mapped[int] = mapped_column(ForeignKey("job.id"))
-    executor_node_uuid: Mapped[UUID] = mapped_column(UUID(as_uuid=True))
+    executor_node_uuid: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
 
 class JobStatus(enum.Enum):
     in_progress = "IN_PROGRESS"
@@ -41,6 +42,9 @@ class Job(Base):
     input_location: Mapped[str] = mapped_column(String())
     job_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
     job_status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.in_progress)
+    # NOTE: hacky way to ensure that only one job can be in progress at the same time.
+    # all null values are "unique", this should be set to null when the job is actually finished
+    finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=True, unique=True)
     current_step: Mapped[str] = mapped_column()
     parts: Mapped[List["JobPart"]] = relationship()
 
@@ -55,6 +59,8 @@ def connect_to_db() -> sqlalchemy.engine.base.Engine:
         )
 
     db = sqlalchemy.create_engine(engine)
+    # no migrations for now
+    Base.metadata.create_all(db)
     with db.begin() as transaction:
         result = transaction.execute(sqlalchemy.text("SELECT 1"))
         assert result.all()[0][0] == 1
