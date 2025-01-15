@@ -7,11 +7,15 @@ from ..proto import coordinator_pb2
 from ..proto import coordinator_pb2_grpc
 
 def client():
-    if len(sys.argv) != 2:
-        print("usage:", sys.argv[0], "host:port")
+    if len(sys.argv) != 3:
+        print("usage:", sys.argv[0], "host:port", "bucket:filename")
         return
 
     with grpc.insecure_channel(sys.argv[1]) as channel:
+        stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
+        result = stub.StartJob(coordinator_pb2.StartJobRequest(inputLocation=sys.argv[2]))
+        print("job id:", result)
+
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
         result = stub.LastJobStatus(Empty())
         print("last job uuid:", result.status.jobUuid)

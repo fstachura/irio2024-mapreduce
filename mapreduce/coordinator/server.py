@@ -5,15 +5,65 @@ from concurrent import futures
 import grpc
 import dns.resolver
 from google.protobuf.empty_pb2 import Empty
+from google.cloud import storage
+from sqlalchemy.orm import Session
 
-from ..proto.coordinator_pb2 import LastJobStatusReply
+from ..proto.coordinator_pb2 import LastJobStatusReply, StartJobReply
 from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
 from ..proto.worker_pb2_grpc import WorkerServiceStub
-from .database import connect_to_db
+from .database import JobPart, connect_to_db, Job
+
+WORDCOUNT_STEPS = [
+    {
+        "name": "map",
+        "shared": True,
+    },
+    {
+        "name": "shuffle",
+        "shared": False,
+        "function": None,
+    },
+    {
+        "name": "reduce",
+        "shared": True,
+    },
+    {
+        "name": "collect",
+        "shared": False,
+        "function": None,
+    }
+]
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
+    def __init__(self, db):
+        self.db = db
+
     def StartJob(self, request, context):
-        return super().StartJob(request, context)
+        storage_client = storage.Client()
+        bucket_name, directory_name = request.inputLocation.split(':')
+        bucket = storage_client.bucket(bucket_name)
+
+        with Session(self.db) as tr:
+            output_location = request.inputLocation.rstrip("/") + "/map/"
+            job = Job(input_location=request.inputLocation, current_step=WORDCOUNT_STEPS[0]["name"])
+            tr.add(job)
+            tr.flush()
+            tr.refresh(job)
+
+            i = 0
+            for f in bucket.list_blobs(prefix=directory_name):
+                if f.name.rstrip("/") != directory_name:
+                    part = JobPart(input_location=f.name,
+                                   output_location=output_location + str(i),
+                                   finished=False,
+                                   job_id=job.id,
+                                   step=WORDCOUNT_STEPS[0]["name"])
+                    tr.add(part)
+                    i += 1
+
+            tr.commit()
+
+            return StartJobReply(jobUuid=str(job.job_uuid))
 
     def LastJobStatus(self, request, context):
         return LastJobStatusReply()
@@ -47,7 +97,7 @@ def serve():
 
         server = grpc.server(executor)
         add_CoordinatorServiceServicer_to_server(
-            CoordinatorServiceServicerImpl(), server
+            CoordinatorServiceServicerImpl(db), server
         )
         server.add_insecure_port(port)
         server.start()
