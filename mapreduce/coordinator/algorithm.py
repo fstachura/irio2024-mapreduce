@@ -83,7 +83,7 @@ def execute_collect(tr, storage_client, job):
             with blob.open('r') as f:
                 out.write(f.read())
 
-    job.finished = True
+    job.finished = None
     tr.commit()
 
 

@@ -1,11 +1,11 @@
 from google.cloud import storage
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from ..proto.coordinator_pb2 import LastJobStatusReply, StartJobReply
 from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
-from .database import Job
+from .database import Job, JobPart
 from .algorithm import init_algorithm, INIT_STEP
-from .utils import get_unfinished_job
 
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
@@ -30,9 +30,23 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
     def LastJobStatus(self, request, context):
         status = None
         with Session(self.db) as tr:
-            job = get_unfinished_job(tr)
+            stmt = select(Job).order_by(desc(Job.id))
+            job = tr.execute(stmt).scalars().first()
+
             if job is not None:
                 job_finished = job.finished is None or job.finished == True
-                status = LastJobStatusReply.JobStatus(jobUuid=str(job.job_uuid), finished=job_finished)
+
+                stmt = select(JobPart).where(JobPart.job_id == job.id, JobPart.step == job.current_step)
+                parts = tr.execute(stmt).scalars().all()
+                parts_finished = [part for part in parts if part.finished]
+
+                status = LastJobStatusReply.JobStatus(
+                        jobUuid=str(job.job_uuid),
+                        finished=job_finished is None,
+                        currentStep=job.current_step,
+                        stepPartsFinished=len(parts_finished),
+                        stepPartsTotal=len(parts),
+                        inputLocation=job.input_location,
+                        outputLocation=job.output_location)
         return LastJobStatusReply(status=status)
 

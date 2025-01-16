@@ -22,6 +22,8 @@ message LastJobStatusReply {
         string currentStep = 3;
         int32 stepPartsFinished = 4;
         int32 stepPartsTotal = 5;
+        string inputLocation = 6;
+        string outputLocation = 7;
     }
     JobStatus status = 1;
 }
