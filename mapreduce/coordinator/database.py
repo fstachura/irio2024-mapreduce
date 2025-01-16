@@ -23,7 +23,7 @@ class JobPart(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     input_location: Mapped[str] = mapped_column()
-    output_location: Mapped[str] = mapped_column()
+    output_location: Mapped[str] = mapped_column(nullable=True)
     step: Mapped[str] = mapped_column()
     finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     job_id: Mapped[int] = mapped_column(ForeignKey("job.id"))
