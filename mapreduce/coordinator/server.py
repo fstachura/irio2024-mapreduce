@@ -34,7 +34,20 @@ def start_map(tr, storage_client, job):
 
     tr.commit()
 
-    return job.job_uuid
+def execute_shuffle(tr, storage_client, job):
+    # download all data (only from job parts)
+    # sort
+    # split into n nodes
+    # upload
+    # create reduce job_part for each output file
+    # all in a transaction - if coordinator crashes, neither the transition nor job parts get saved
+    # what if coordinator fails during that? execute shuffle will get re-executed from the loop (assuming i don't mess up transactions)
+    pass
+
+def execute_collect(tr, storage_client, job):
+    # concat all reduce output files into a new file
+    # what if coordinator fails during that? will get re-executed from the loop
+    pass
 
 WORDCOUNT_STEPS = {
     "map": {
@@ -43,11 +56,12 @@ WORDCOUNT_STEPS = {
     },
     "shuffle": {
         "next": "reduce",
-    },
-    "reduce": {
-        "next": "collect",
+        # starts reduce job parts
+        "callback": execute_shuffle,
+        "next": "collect"
     },
     "collect": {
+        "callback": execute_collect,
     }
 }
 
@@ -64,8 +78,8 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
             tr.flush()
             tr.refresh(job)
 
-            job_uuid = WORDCOUNT_STEPS["map"]["callback"](tr, storage_client, job)
-            return StartJobReply(jobUuid=str(job_uuid))
+            WORDCOUNT_STEPS["map"]["callback"](tr, storage_client, job)
+            return StartJobReply(jobUuid=str(job.job_uuid))
 
     def LastJobStatus(self, request, context):
         status = None
@@ -201,13 +215,12 @@ def update(tr, get_nodes):
                     node = free_nodes.pop()
                     submit_job_to_worker(tr, node[0][0], node[0][1], part)
 
-
     tr.commit()
 
     if len(get_unfinished_job_parts(tr)) == 0:
         logging.info(f"step finished {job.current_step}")
-        # TODO execute next step
-        pass
+        next_step_name = WORDCOUNT_STEPS[job.current_step]["next"]
+        WORDCOUNT_STEPS[next_step_name]["callable"]()
 
 def start_update_loop(db, get_nodes):
     while True:
