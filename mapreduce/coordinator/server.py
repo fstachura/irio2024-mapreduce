@@ -27,7 +27,7 @@ def check_nodes(nodes_addr, node_port):
         for addr in nodes:
             try:
                 result = query_node(addr.address, node_port)
-                logging.info(f"node status of {addr}: {result.status}, errorMessage: {result.errorMessage}")
+                logging.info(f"node status of {addr}: {result.status}, errorMessage: {result.errorMessage}, workerUuid: {result.workerUuid}")
             except Exception:
                 logging.exception("failed to query node " + str(addr))
 
@@ -51,4 +51,3 @@ def serve():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     serve()
-
