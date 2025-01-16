@@ -4,7 +4,7 @@ from typing import List
 import uuid
 import enum
 import sqlalchemy
-from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum, MetaData, null
+from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,7 @@ class Job(Base):
     finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=True, unique=True)
     current_step: Mapped[str] = mapped_column()
     parts: Mapped[List["JobPart"]] = relationship()
+
 
 def connect_to_db() -> sqlalchemy.engine.base.Engine:
     engine = sqlalchemy.engine.url.URL.create(
