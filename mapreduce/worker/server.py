@@ -84,13 +84,7 @@ class NodeAPIServicerImpl(NodeAPIServicer):
             return self.current_job.status()
 
     def is_working(self):
-        if self.current_job is not None:
-            if self.current_job.is_working():
-                return True
-            else:
-                return False
-        else:
-            return False
+        return self.current_job is not None and self.current_job.is_working()
 
     def StartStep(self, request, context):
         logging.info("StartStep request:\n" + str(request))
