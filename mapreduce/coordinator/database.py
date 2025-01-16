@@ -40,6 +40,7 @@ class Job(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     input_location: Mapped[str] = mapped_column(String())
+    output_location: Mapped[str] = mapped_column(String())
     job_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
     job_status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.in_progress)
     # NOTE: hacky way to ensure that only one job can be in progress at the same time.

@@ -38,7 +38,6 @@ def split_on_same_elements(l, parts, eq):
     result = []
     part_len = (len(l)+1)//parts
     part_idxes = [(n+1)*part_len for n in range(parts-1)]
-    print(part_idxes, part_len)
 
     for n in range(parts-1):
         i = part_idxes[n]
@@ -93,14 +92,25 @@ def execute_shuffle(tr, storage_client, job):
     tr.commit()
     # in a transaction - if coordinator crashes, neither the transition nor job parts get saved
 
-    # what if coordinator fails here? 
-    # execute shuffle will get re-executed from the loop (assuming i don't mess up transactions). 
-    # some job parts may have been started and lost
-
 def execute_collect(tr, storage_client, job):
-    # concat all reduce output files into a new file
-    # what if coordinator fails during that? will get re-executed from the loop
-    pass
+    stmt = select(JobPart).where(JobPart.step == WORDCOUNT_REDUCE, JobPart.job_id == job.id)
+    parts = tr.execute(stmt).scalars().all()
+
+    output_bucket_name, output_file = job.output_location.split(':')
+    output_bucket = storage_client.bucket(output_bucket_name)
+
+    with output_bucket.blob(output_file).open('w') as out:
+        for part in parts:
+            assert part.finished
+
+            bucket_name, directory_name = part.output_location.split(':')
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.get_blob(directory_name)
+            with blob.open('r') as f:
+                out.write(f.read())
+
+    job.finished = True
+    tr.commit()
 
 WORDCOUNT_MAP = "map"
 WORDCOUNT_SHUFFLE = "shuffle"
@@ -132,7 +142,9 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
         with Session(self.db) as tr:
             storage_client = storage.Client()
 
-            job = Job(input_location=request.inputLocation, current_step=WORDCOUNT_MAP)
+            job = Job(input_location=request.inputLocation,
+                      output_location=request.outputLocation,
+                      current_step=WORDCOUNT_MAP)
             tr.add(job)
             tr.flush()
             tr.refresh(job)
@@ -208,7 +220,6 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
                 # NOTE if coordinator crashes after submitting job, but before saving job to the database, 
                 # that progress will effectively be lost. the part will get resubmitted later.
                 # coordinator does not have a way to "learn" which parts are being done from workers, after booting up
-                print(result)
                 part.executor_node_uuid = result.workerUuid
                 part.output_location = output_location
                 tr.commit()

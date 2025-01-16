@@ -7,13 +7,18 @@ from ..proto import coordinator_pb2
 from ..proto import coordinator_pb2_grpc
 
 def client():
-    if len(sys.argv) != 3:
-        print("usage:", sys.argv[0], "host:port", "bucket:filename")
+    if len(sys.argv) != 4:
+        print("usage:", sys.argv[0], "host:port", "bucket:input_dir", "bucket:output_file")
         return
 
     with grpc.insecure_channel(sys.argv[1]) as channel:
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
-        result = stub.StartJob(coordinator_pb2.StartJobRequest(inputLocation=sys.argv[2]))
+        result = stub.StartJob(
+                coordinator_pb2.StartJobRequest(
+                    inputLocation=sys.argv[2],
+                    outputLocation=sys.argv[3]
+                )
+            )
         print("job id:", result)
 
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
