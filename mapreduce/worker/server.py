@@ -72,6 +72,9 @@ class Job:
             raise
 
 class NodeAPIServicerImpl(NodeAPIServicer):
+    """
+    Not thread-safe.
+    """
     def __init__(self):
         super().__init__()
         self.workerUuid = str(uuid.uuid4())
@@ -135,6 +138,7 @@ class NodeAPIServicerImpl(NodeAPIServicer):
         )
 
 def serve():
+    # Worker node processes one request at a time.
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
     mapreduce_pb2_grpc.add_NodeAPIServicer_to_server(
         NodeAPIServicerImpl(), server
