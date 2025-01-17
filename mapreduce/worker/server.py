@@ -61,12 +61,15 @@ class Job:
 
     def reduce_function(self, input_file, output_file):
         try:
-            with input_file.open('r') as r, output_file.open('w') as w:
-                line_cnt = 0
+            word_cnt = {}
+            with input_file.open('r') as r:
                 for line in r:
                     word, cnt = line.split(',')
-                    line_cnt += int(cnt)
-                w.write(f"{word},{line_cnt}\n")
+                    word_cnt[word] = word_cnt.get(word, 0) + int(cnt)
+
+            with output_file.open('w') as w:
+                for word, cnt in word_cnt.items():
+                    w.write(f"{word},{cnt}\n")
         except Exception as e:
             self.exception_string = repr(e)
             raise
