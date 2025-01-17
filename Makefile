@@ -1,6 +1,13 @@
-mapreduce/grpc/mapreduce_pb2.py: mapreduce/grpc/mapreduce.proto
-	python3 -m grpc_tools.protoc -Imapreduce/grpc=mapreduce/grpc --python_out=. --grpc_python_out=. mapreduce/grpc/mapreduce.proto
+all: mapreduce/proto/coordinator_pb2.py mapreduce/proto/worker_pb2.py
+
+mapreduce/proto/coordinator_pb2.py: mapreduce/proto/coordinator.proto
+	python3 -m grpc_tools.protoc -Imapreduce/proto=mapreduce/proto --python_out=. --grpc_python_out=. $^
+
+mapreduce/proto/worker_pb2.py: mapreduce/proto/worker.proto
+	python3 -m grpc_tools.protoc -Imapreduce/proto=mapreduce/proto --python_out=. --grpc_python_out=. $^
+
+.PHONY: all, clean
 
 clean:
-	rm mapreduce/grpc/*.py
+	rm -f mapreduce/proto/*.py
 
