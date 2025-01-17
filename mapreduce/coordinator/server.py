@@ -4,11 +4,13 @@ import os
 from concurrent import futures
 import grpc
 import dns.resolver
+from google.protobuf.empty_pb2 import Empty
 
-from ..grpc.mapreduce_pb2 import LastJobStatusReply, Empty
-from ..grpc.mapreduce_pb2_grpc import NodeAPIStub, UserAPIServicer, add_UserAPIServicer_to_server
+from ..proto.coordinator_pb2 import LastJobStatusReply
+from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
+from ..proto.worker_pb2_grpc import WorkerServiceStub
 
-class UserAPIServicerImpl(UserAPIServicer):
+class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
     def StartJob(self, request, context):
         return super().StartJob(request, context)
 
@@ -17,8 +19,8 @@ class UserAPIServicerImpl(UserAPIServicer):
 
 def query_node(addr, node_port):
     with grpc.insecure_channel(addr + ":" + node_port) as channel:
-        stub = NodeAPIStub(channel)
-        result = stub.NodeStatus(Empty())
+        stub = WorkerServiceStub(channel)
+        result = stub.WorkerStatus(Empty())
         return result
 
 def check_nodes(nodes_addr, node_port):
@@ -41,8 +43,8 @@ def serve():
 
         port = os.environ.get("HTTP_PORT", "[::]:50001")
         server = grpc.server(executor)
-        add_UserAPIServicer_to_server(
-            UserAPIServicerImpl(), server
+        add_CoordinatorServiceServicer_to_server(
+            CoordinatorServiceServicerImpl(), server
         )
         server.add_insecure_port(port)
         server.start()
