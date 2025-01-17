@@ -66,7 +66,7 @@ class Job:
                 for line in r:
                     word, cnt = line.split(',')
                     line_cnt += int(cnt)
-                w.write(f"{word},{line_cnt}")
+                w.write(f"{word},{line_cnt}\n")
         except Exception as e:
             self.exception_string = repr(e)
             raise
