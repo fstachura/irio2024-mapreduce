@@ -83,8 +83,10 @@ def execute_collect(tr, storage_client, job):
             with blob.open('r') as f:
                 out.write(f.read())
 
+    job.current_step = "collect"
     job.finished = None
     tr.commit()
+    logger.info(f"job finished {job.job_uuid}")
 
 
 WORDCOUNT_STEPS = {

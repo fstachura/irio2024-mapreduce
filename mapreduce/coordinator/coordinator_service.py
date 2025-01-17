@@ -42,7 +42,7 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
 
                 status = LastJobStatusReply.JobStatus(
                         jobUuid=str(job.job_uuid),
-                        finished=job_finished is None,
+                        finished=job_finished,
                         currentStep=job.current_step,
                         stepPartsFinished=len(parts_finished),
                         stepPartsTotal=len(parts),
