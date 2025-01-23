@@ -1,8 +1,10 @@
 import logging
 import sys
 import grpc
-from ..grpc import mapreduce_pb2
-from ..grpc import mapreduce_pb2_grpc
+from google.protobuf.empty_pb2 import Empty
+
+from ..proto import worker_pb2
+from ..proto import worker_pb2_grpc
 
 def client():
     if len(sys.argv) != 2:
@@ -10,9 +12,9 @@ def client():
         return
 
     with grpc.insecure_channel(sys.argv[1]) as channel:
-        stub = mapreduce_pb2_grpc.NodeAPIStub(channel)
+        stub = worker_pb2_grpc.WorkerServiceStub(channel)
 
-        startStepRequest = mapreduce_pb2.StartStepRequest(
+        startStepRequest = worker_pb2.StartStepRequest(
             inputLocation="inputLocationPlaceholder",
             outputLocation="outputLocationPlaceholder",
             stepId="stepIdPlaceholder"
@@ -20,8 +22,8 @@ def client():
         startStepReply = stub.StartStep(startStepRequest)
         print("StartStep(..):\n" + str(startStepReply))
 
-        nodeStatusReply = stub.NodeStatus(mapreduce_pb2.Empty())
-        print("NodeStatus():\n" + str(nodeStatusReply))
+        nodeStatusReply = stub.WorkerStatus(Empty())
+        print("WorkerStatus():\n" + str(nodeStatusReply))
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

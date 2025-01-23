@@ -2,8 +2,9 @@ from enum import Enum, auto
 import logging
 import threading
 import uuid
-from ..grpc import mapreduce_pb2
-from ..grpc.mapreduce_pb2_grpc import NodeAPIServicer
+
+from mapreduce.proto import worker_pb2
+from mapreduce.proto.worker_pb2_grpc import WorkerServiceServicer
 from .utils import get_file_handles_from_gstorage
 
 class Job:
@@ -55,7 +56,7 @@ class Job:
             self.exception_string = repr(e)
             raise
 
-class NodeAPIServicerImpl(NodeAPIServicer):
+class WorkerServiceServicerImpl(WorkerServiceServicer):
     """
     Not thread-safe.
     """
@@ -78,7 +79,7 @@ class NodeAPIServicerImpl(NodeAPIServicer):
 
         if self.is_working():
             logging.info("Received step request, but node is still working")
-            return mapreduce_pb2.StartStepReply(ok=False, workerUuid=self.workerUuid)
+            return worker_pb2.StartStepReply(ok=False, workerUuid=self.workerUuid)
 
         input_file, output_file = get_file_handles_from_gstorage(
             [request.inputLocation, request.outputLocation]
@@ -88,34 +89,34 @@ class NodeAPIServicerImpl(NodeAPIServicer):
             case "map":
                 self.current_job = Job(Job.map_function, (input_file, output_file))
                 self.current_job.start()
-                return mapreduce_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
+                return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
             case "reduce":
                 self.current_job = Job(Job.reduce_function, (input_file, output_file))
                 self.current_job.start()
-                return mapreduce_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
+                return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
             case stepId:
                 logging.error(f"StartStep() unimplemented for provided StepId: {stepId}")
-                return mapreduce_pb2.StartStepReply(ok=False, workerUuid=self.workerUuid)
+                return worker_pb2.StartStepReply(ok=False, workerUuid=self.workerUuid)
 
-    def NodeStatus(self, request, context):
-        logging.info("NodeStatus request: " + str(request))
+    def WorkerStatus(self, request, context):
+        logging.info("WorkerStatus request: " + str(request))
 
-        status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Unspecified
+        status = worker_pb2.WorkerStatusReply.WorkerStatusEnum.Ok
         error_msg = None
         match self.status():
             case Job.JobStatus.OK:
-                status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Ok
+                status = worker_pb2.WorkerStatusReply.WorkerStatusEnum.Ok
                 self.current_job = None
             case Job.JobStatus.WORKING:
-                status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Working
+                status = worker_pb2.WorkerStatusReply.WorkerStatusEnum.Working
             case Job.JobStatus.FAILED:
-                status = mapreduce_pb2.NodeStatusReply.NodeStatusEnum.Failure
+                status = worker_pb2.WorkerStatusReply.WorkerStatusEnum.Failure
                 error_msg = self.current_job.exception_string
                 self.current_job = None
             case _:
                 raise NotImplementedError("Unhandled worker status")
 
-        return mapreduce_pb2.NodeStatusReply(
+        return worker_pb2.WorkerStatusReply(
             status=status,
             errorMessage=error_msg,
             workerUuid=self.workerUuid
