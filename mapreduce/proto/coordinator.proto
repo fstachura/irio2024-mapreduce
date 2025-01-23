@@ -4,6 +4,7 @@ import "google/protobuf/empty.proto";
 service CoordinatorService {
     rpc StartJob(StartJobRequest) returns (StartJobReply) {}
     rpc LastJobStatus(google.protobuf.Empty) returns (LastJobStatusReply) {}
+    rpc UploadFiles(UploadFilesRequest) returns (UploadFilesReply) {}
 }
 
 message StartJobRequest {
@@ -26,4 +27,13 @@ message LastJobStatusReply {
         string outputLocation = 7;
     }
     JobStatus status = 1;
+}
+
+message UploadFilesRequest {
+    int32 numberOfFiles = 1;
+}
+
+message UploadFilesReply {
+    string inputLocation = 1;
+    repeated string uploadUrls = 2;
 }

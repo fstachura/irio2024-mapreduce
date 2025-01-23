@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from math import ceil
 from google.cloud import storage
@@ -35,6 +36,20 @@ def get_blob(location):
     bucket_name, filename = location.split(':')
     bucket = storage_client.bucket(bucket_name)
     return bucket.get_blob(filename)
+
+def generate_upload_url(bucket, filename):
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket)
+    blob = bucket.blob(filename)
+
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(hours=1),
+        method="PUT",
+        content_type="application/octet-stream"
+    )
+
+    return url
 
 def get_unfinished_job_parts(tr):
     stmt = select(JobPart).where(JobPart.finished == False)
