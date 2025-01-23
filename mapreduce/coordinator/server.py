@@ -9,7 +9,7 @@ from ..proto.coordinator_pb2_grpc import add_CoordinatorServiceServicer_to_serve
 
 from .coordinator_service import CoordinatorServiceServicerImpl
 from .database import connect_to_db
-from .update_loop import start_update_loop, UpdateContext
+from .update_loop import start_update_loop, UpdateContext, get_nodes_from_dns
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ def serve():
         port = os.environ.get("HTTP_PORT", "[::]:50001")
         db = connect_to_db()
         storage_client = storage.Client()
-        #get_nodes = lambda: get_nodes_from_dns(nodes_addr, node_port)
-        get_nodes = lambda: [("localhost", "50051"), ("localhost", "50052"), ("localhost", "50053")]
+        get_nodes = lambda: get_nodes_from_dns(nodes_addr, node_port)
+        #get_nodes = lambda: [("localhost", "50051"), ("localhost", "50052"), ("localhost", "50053")]
         executor.submit(start_update_loop, UpdateContext(db, storage_client, get_nodes))
 
         server = grpc.server(executor)
