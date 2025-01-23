@@ -8,6 +8,7 @@ service CoordinatorService {
 
 message StartJobRequest {
     string inputLocation = 1;
+    string outputLocation = 2;
 }
 
 message StartJobReply {
@@ -18,7 +19,11 @@ message LastJobStatusReply {
     message JobStatus {
         string jobUuid = 1;
         bool finished = 2;
-        // current step? more detailed node status?
+        string currentStep = 3;
+        int32 stepPartsFinished = 4;
+        int32 stepPartsTotal = 5;
+        string inputLocation = 6;
+        string outputLocation = 7;
     }
     JobStatus status = 1;
 }

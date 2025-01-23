@@ -1,50 +1,33 @@
-from time import sleep
 import logging
+
 import os
 from concurrent import futures
 import grpc
-import dns.resolver
-from google.protobuf.empty_pb2 import Empty
+from google.cloud import storage
 
-from ..proto.coordinator_pb2 import LastJobStatusReply
-from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
-from ..proto.worker_pb2_grpc import WorkerServiceStub
+from ..proto.coordinator_pb2_grpc import add_CoordinatorServiceServicer_to_server
 
-class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
-    def StartJob(self, request, context):
-        return super().StartJob(request, context)
+from .coordinator_service import CoordinatorServiceServicerImpl
+from .database import connect_to_db
+from .update_loop import start_update_loop, UpdateContext, get_nodes_from_dns
 
-    def LastJobStatus(self, request, context):
-        return LastJobStatusReply()
-
-def query_node(addr, node_port):
-    with grpc.insecure_channel(addr + ":" + node_port) as channel:
-        stub = WorkerServiceStub(channel)
-        result = stub.WorkerStatus(Empty())
-        return result
-
-def check_nodes(nodes_addr, node_port):
-    while True:
-        nodes = dns.resolver.resolve(nodes_addr, 'A')
-        for addr in nodes:
-            try:
-                result = query_node(addr.address, node_port)
-                logging.info(f"node status of {addr}: {result.status}, errorMessage: {result.errorMessage}, workerUuid: {result.workerUuid}")
-            except Exception:
-                logging.exception("failed to query node " + str(addr))
-
-        sleep(1)
+logger = logging.getLogger(__name__)
 
 def serve():
     with futures.ThreadPoolExecutor() as executor:
         nodes_addr = os.environ.get("NODES_ADDR", "")
         node_port = os.environ.get("NODE_PORT", "50051")
-        executor.submit(check_nodes, nodes_addr, node_port)
 
         port = os.environ.get("HTTP_PORT", "[::]:50001")
+        db = connect_to_db()
+        storage_client = storage.Client()
+        get_nodes = lambda: get_nodes_from_dns(nodes_addr, node_port)
+        #get_nodes = lambda: [("localhost", "50051"), ("localhost", "50052"), ("localhost", "50053")]
+        executor.submit(start_update_loop, UpdateContext(db, storage_client, get_nodes))
+
         server = grpc.server(executor)
         add_CoordinatorServiceServicer_to_server(
-            CoordinatorServiceServicerImpl(), server
+            CoordinatorServiceServicerImpl(db), server
         )
         server.add_insecure_port(port)
         server.start()
