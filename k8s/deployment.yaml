@@ -79,6 +79,44 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: frontend
+  labels:
+    type: frontend
+spec:
+  selector:
+    matchLabels:
+      type: frontend
+  template:
+    metadata:
+      labels:
+        type: frontend
+    spec:
+      hostname: "frontend"
+      containers:
+      - name: frontend
+        image: "us-central1-docker.pkg.dev/mapreduce-irio/main/mapreduce:dev"
+        imagePullPolicy: Always
+        command: ["python3"]
+        args: ["-m", "gunicorn", "mapreduce.frontend.server", "-b", "0.0.0.0:8000"]
+        ports:
+        - containerPort: 8000
+        env:
+        - name: COORDINATOR_ADDR
+          value: "coordinator.default.svc.cluster.local:8091"
+        - name: AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: "frontend-secrets"
+              key: username
+        - name: AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: "frontend-secrets"
+              key: password
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: sql-proxy
   labels:
     type: sql-proxy
