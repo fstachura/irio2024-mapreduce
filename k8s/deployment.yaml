@@ -13,6 +13,10 @@ spec:
       labels:
         type: coordinator
     spec:
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: service-account-credentials
       hostname: "coordinator"
       containers:
       - name: coordinator
@@ -22,6 +26,9 @@ spec:
         args: ["-m", "mapreduce.coordinator.server"]
         ports:
         - containerPort: 8091
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
         env:
         - name: HTTP_PORT
           value: "[::]:8091"
@@ -46,6 +53,8 @@ spec:
             secretKeyRef:
               name: "db-secrets"
               key: database
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
         - name: DEFAULT_BUCKET
           value: "irio_test"
 
