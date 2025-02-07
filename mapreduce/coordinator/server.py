@@ -17,6 +17,7 @@ def serve():
     with futures.ThreadPoolExecutor() as executor:
         nodes_addr = os.environ.get("NODES_ADDR", "")
         node_port = os.environ.get("NODE_PORT", "50051")
+        default_bucket = os.environ["DEFAULT_BUCKET"]
 
         port = os.environ.get("HTTP_PORT", "[::]:50001")
         db = connect_to_db()
@@ -27,7 +28,7 @@ def serve():
 
         server = grpc.server(executor)
         add_CoordinatorServiceServicer_to_server(
-            CoordinatorServiceServicerImpl(db), server
+            CoordinatorServiceServicerImpl(db, default_bucket), server
         )
         server.add_insecure_port(port)
         server.start()

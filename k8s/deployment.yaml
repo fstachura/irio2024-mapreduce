@@ -46,6 +46,8 @@ spec:
             secretKeyRef:
               name: "db-secrets"
               key: database
+        - name: DEFAULT_BUCKET
+          value: "irio_test"
 
 ---
 apiVersion: apps/v1

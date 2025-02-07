@@ -1,16 +1,19 @@
+from uuid import uuid4
 from google.cloud import storage
 from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
-from ..proto.coordinator_pb2 import LastJobStatusReply, StartJobReply
+from ..proto.coordinator_pb2 import LastJobStatusReply, StartJobReply, UploadFilesReply
 from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
 from .database import Job, JobPart
 from .algorithm import init_algorithm, INIT_STEP
+from .utils import generate_upload_url
 
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
-    def __init__(self, db):
+    def __init__(self, db, bucket_name):
         self.db = db
+        self.bucket_name = bucket_name
 
     def StartJob(self, request, context):
         with Session(self.db) as tr:
@@ -49,4 +52,10 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
                         inputLocation=job.input_location,
                         outputLocation=job.output_location)
         return LastJobStatusReply(status=status)
+
+    def UploadFiles(self, request, context):
+        dir_uuid = uuid4()
+        filenames = [f"{dir_uuid}/{uuid4()}" for _ in range(request.numberOfFiles)]
+        urls = [generate_upload_url(self.bucket_name, f) for f in filenames]
+        return UploadFilesReply(uploadUrls=urls, inputLocation=f"{self.bucket_name}:{dir_uuid}")
 
