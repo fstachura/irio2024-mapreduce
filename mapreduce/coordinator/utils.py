@@ -8,7 +8,7 @@ from .database import Job, JobPart
 
 def split_on_same_elements(l, parts, eq):
     if parts == 1:
-        return l
+        return [l]
 
     result = []
     part_len = ceil(len(l)/parts)
