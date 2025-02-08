@@ -24,6 +24,11 @@ spec:
         imagePullPolicy: Always
         command: ["python3"]
         args: ["-m", "mapreduce.coordinator.server"]
+        livenessProbe:
+          grpc:
+            port: 8091
+          initialDelaySeconds: 30
+          periodSeconds: 10
         ports:
         - containerPort: 8091
         volumeMounts:
