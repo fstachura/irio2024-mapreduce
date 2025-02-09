@@ -4,3 +4,6 @@ dnspython~=2.7.0
 google-cloud-storage~=2.19.0
 SQLAlchemy~=2.0.36
 psycopg2-binary~=2.9.10
+Flask~=3.1.0
+gunicorn~=23.0.0
+Flask-HTTPAuth~=4.8.0

@@ -13,6 +13,10 @@ spec:
       labels:
         type: coordinator
     spec:
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: service-account-credentials
       hostname: "coordinator"
       containers:
       - name: coordinator
@@ -22,6 +26,9 @@ spec:
         args: ["-m", "mapreduce.coordinator.server"]
         ports:
         - containerPort: 8091
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
         env:
         - name: HTTP_PORT
           value: "[::]:8091"
@@ -46,6 +53,8 @@ spec:
             secretKeyRef:
               name: "db-secrets"
               key: database
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
         - name: DEFAULT_BUCKET
           value: "irio_test"
 
@@ -75,6 +84,44 @@ spec:
         args: ["-m", "mapreduce.worker.server"]
         ports:
         - containerPort: 50051
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    type: frontend
+spec:
+  selector:
+    matchLabels:
+      type: frontend
+  template:
+    metadata:
+      labels:
+        type: frontend
+    spec:
+      hostname: "frontend"
+      containers:
+      - name: frontend
+        image: "us-central1-docker.pkg.dev/mapreduce-irio/main/mapreduce:dev"
+        imagePullPolicy: Always
+        command: ["python3"]
+        args: ["-m", "gunicorn", "mapreduce.frontend.server", "-b", "0.0.0.0:8000"]
+        ports:
+        - containerPort: 8000
+        env:
+        - name: COORDINATOR_ADDR
+          value: "coordinator.default.svc.cluster.local:8091"
+        - name: AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: "frontend-secrets"
+              key: username
+        - name: AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: "frontend-secrets"
+              key: password
 ---
 apiVersion: apps/v1
 kind: Deployment
