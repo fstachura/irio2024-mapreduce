@@ -1,12 +1,11 @@
 from enum import Enum, auto
 import logging
-import re
-import string
 import threading
 import uuid
 
 from mapreduce.proto import worker_pb2
 from mapreduce.proto.worker_pb2_grpc import WorkerServiceServicer
+from mapreduce.worker.algorithm import STEP_ID_TO_FUNCTION
 from .utils import get_file_handles_from_gstorage
 
 class Job:
@@ -15,8 +14,8 @@ class Job:
         WORKING = auto()
         FAILED = auto()
 
-    def __init__(self, target, args):
-        self.thread = threading.Thread(target=target, args=(self, *args))
+    def __init__(self, stepId, args):
+        self.thread = threading.Thread(target=self.wrapper_function, args=(STEP_ID_TO_FUNCTION[stepId], args))
         self.exception_string = None
 
     def status(self):
@@ -27,40 +26,18 @@ class Job:
         else:
             return self.JobStatus.FAILED
 
+    def wrapper_function(self, f, args):
+        try:
+            f(*args)
+        except Exception as e:
+            self.exception_string = repr(e)
+            raise
+
     def start(self):
         self.thread.start()
 
     def is_working(self):
         return self.thread.is_alive()
-
-    def map_function(self, input_file, output_file, input_file_start, input_file_end):
-        try:
-            with input_file.open('rb') as r, output_file.open('w') as w:
-                r.seek(input_file_start)
-                data = r.read(input_file_end - input_file_start).decode()
-
-                rgx = "(?:\\s|" + "|".join("\\" + c for c in string.punctuation) + ")+"
-                for word in filter(len, re.split(rgx, data)):
-                    w.write(f"{word},1\n")
-        except Exception as e:
-            self.exception_string = repr(e)
-            raise
-
-    def reduce_function(self, input_file, output_file, input_file_start, input_file_end):
-        try:
-            word_cnt = {}
-            with input_file.open('rb') as r:
-                r.seek(input_file_start)
-                for line in r.read(input_file_end - input_file_start).decode().strip().split('\n'):
-                    word, cnt = line.split(',')
-                    word_cnt[word] = word_cnt.get(word, 0) + int(cnt)
-
-            with output_file.open('w') as w:
-                for word, cnt in word_cnt.items():
-                    w.write(f"{word},{cnt}\n")
-        except Exception as e:
-            self.exception_string = repr(e)
-            raise
 
 class WorkerServiceServicerImpl(WorkerServiceServicer):
     """
@@ -91,18 +68,9 @@ class WorkerServiceServicerImpl(WorkerServiceServicer):
             [request.inputLocation, request.outputLocation]
         )
 
-        match request.stepId:
-            case "map":
-                self.current_job = Job(Job.map_function, (input_file, output_file, request.rangeStart, request.rangeEnd))
-                self.current_job.start()
-                return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
-            case "reduce":
-                self.current_job = Job(Job.reduce_function, (input_file, output_file, request.rangeStart, request.rangeEnd))
-                self.current_job.start()
-                return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
-            case stepId:
-                logging.error(f"StartStep() unimplemented for provided StepId: {stepId}")
-                return worker_pb2.StartStepReply(ok=False, workerUuid=self.workerUuid)
+        self.current_job = Job(request.stepId, (input_file, output_file, request.rangeStart, request.rangeEnd))
+        self.current_job.start()
+        return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
 
     def WorkerStatus(self, request, context):
         logging.info("WorkerStatus request: " + str(request))
