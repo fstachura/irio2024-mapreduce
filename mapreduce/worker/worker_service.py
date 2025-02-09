@@ -1,5 +1,7 @@
 from enum import Enum, auto
 import logging
+import re
+import string
 import threading
 import uuid
 
@@ -35,7 +37,8 @@ class Job:
         try:
             with input_file.open('r') as r, output_file.open('w') as w:
                 for line in r:
-                    for word in line.split():
+                    rgx = "(?:\\s|" + "|".join("\\" + c for c in string.punctuation) + ")+"
+                    for word in filter(len, re.split(rgx, line)):
                         w.write(f"{word},1\n")
         except Exception as e:
             self.exception_string = repr(e)
