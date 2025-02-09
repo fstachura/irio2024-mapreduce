@@ -11,9 +11,10 @@ from .utils import generate_upload_url
 
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
-    def __init__(self, db, bucket_name):
+    def __init__(self, db, bucket_name, expected_parts):
         self.db = db
         self.bucket_name = bucket_name
+        self.expected_parts = expected_parts
 
     def StartJob(self, request, context):
         with Session(self.db) as tr:
@@ -21,7 +22,8 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
 
             job = Job(input_location=request.inputLocation,
                       output_location=request.outputLocation,
-                      current_step=INIT_STEP)
+                      current_step=INIT_STEP,
+                      expected_parts=max(self.expected_parts.get(), 1))
             tr.add(job)
             tr.flush()
             tr.refresh(job)

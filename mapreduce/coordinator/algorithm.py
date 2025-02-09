@@ -1,4 +1,6 @@
 import logging
+import string
+from math import ceil
 from sqlalchemy import select
 
 from .database import JobPart
@@ -11,20 +13,57 @@ WORDCOUNT_SHUFFLE = "shuffle"
 WORDCOUNT_REDUCE = "reduce"
 WORDCOUNT_COLLECT = "collect"
 
+PUNCTUATION_CHARACTERS = string.punctuation + string.whitespace
+SMALL_FILE_SIZE = 128*1024
+
 def start_map(tr, storage_client, job):
     bucket_name, directory_name = job.input_location.split(':')
     bucket = storage_client.bucket(bucket_name)
     if directory_name[-1] != "/":
         directory_name += "/"
 
-    for f in bucket.list_blobs(prefix=directory_name):
-        if f.name.rstrip("/") != directory_name.rstrip("/"):
-            logger.info(f"processing file in start_map {f}")
-            part = JobPart(input_location=f"{bucket_name}:{f.name}",
-                           finished=False,
-                           job_id=job.id,
-                           step=WORDCOUNT_MAP)
-            tr.add(part)
+    parts = []
+    for blob in bucket.list_blobs(prefix=directory_name):
+        if blob.name.rstrip("/") != directory_name.rstrip("/"):
+            logger.info(f"processing file in start_map {blob}")
+
+            if blob.size < SMALL_FILE_SIZE or job.expected_parts == 1:
+                logger.info(f"file is small ({blob.size} bytes), processing whole {blob}")
+                parts.append((blob.name, 0, blob.size))
+            else:
+                part_size = ceil(blob.size / job.expected_parts)
+                range_start, range_end = 0, part_size
+                with blob.open('r') as f:
+                    for _ in range(job.expected_parts):
+                        if range_start >= blob.size:
+                            break
+
+                        f.seek(range_end)
+                        while range_end <= blob.size:
+                            char = f.read(1)
+                            range_end += len(char.encode())
+                            if char in PUNCTUATION_CHARACTERS:
+                                break
+
+                        if range_end > blob.size:
+                            range_end = blob.size
+
+                        if range_end - range_start <= 0:
+                            break
+
+                        logger.info(f"dividing file into parts {blob} {range_start}-{range_end} of {blob.size}")
+                        parts.append((blob.name, range_start, range_end))
+                        range_start = range_end
+                        range_end += part_size
+
+    for name, start, end in parts:
+        job_part = JobPart(input_location=f"{bucket_name}:{name}",
+                       range_start=start,
+                       range_end=end,
+                       finished=False,
+                       job_id=job.id,
+                       step=WORDCOUNT_MAP)
+        tr.add(job_part)
 
     tr.commit()
 
@@ -52,14 +91,19 @@ def execute_shuffle(tr, storage_client, job):
 
     for reduce_part in reduce_parts:
         input_location = generate_tmp_location(input_directory , WORDCOUNT_REDUCE + "_input")
+        size = 0
         with job_bucket.blob(input_location).open('w') as f:
             for part in reduce_part:
-                f.write(part[0] + "," + part[1] + "\n")
+                to_write = part[0] + "," + part[1] + "\n"
+                f.write(to_write)
+                size += len(to_write.encode())
 
         part = JobPart(input_location=f"{job_bucket_name}:{input_location}",
                        finished=False,
                        job_id=job.id,
-                       step=WORDCOUNT_REDUCE)
+                       step=WORDCOUNT_REDUCE,
+                       range_start=0,
+                       range_end=size)
         tr.add(part)
 
     job.current_step = WORDCOUNT_REDUCE

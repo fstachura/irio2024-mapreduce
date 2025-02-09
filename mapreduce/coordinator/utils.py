@@ -1,5 +1,6 @@
 import datetime
 import uuid
+import threading
 from math import ceil
 from google.cloud import storage
 from sqlalchemy import select
@@ -58,4 +59,17 @@ def get_unfinished_job_parts(tr):
 def get_unfinished_job(tr):
     stmt = select(Job).where(Job.finished == False)
     return tr.execute(stmt).scalars().first()
+
+class AtomicInt:
+    def __init__(self, init):
+        self.cnt = init
+        self.lock = threading.Lock()
+
+    def set(self, val):
+        with self.lock:
+            self.cnt = val
+
+    def get(self):
+        with self.lock:
+            return self.cnt
 
