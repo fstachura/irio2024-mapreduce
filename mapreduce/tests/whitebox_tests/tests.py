@@ -64,7 +64,10 @@ def run_tests():
     tests = [Test("single_word", ["single_word_input"], "single_word_output"),
              Test("multiple_words",
                   ["multiple_words_input1", "multiple_words_input2", "multiple_words_input3"],
-                  "multiple_words_output")]
+                  "multiple_words_output"),
+             Test("big_file",
+                  ["big_file_input"],
+                  "big_file_output")]
     failed_tests = []
     for test in tests:
         with grpc.insecure_channel(host_port) as channel:
