@@ -1,5 +1,5 @@
 import os
-from queue import Empty
+import subprocess
 import sys
 from time import sleep
 from uuid import uuid4
@@ -12,10 +12,11 @@ from mapreduce.worker.utils import get_file_handles_from_gstorage
 TEST_DIRECTORY = os.path.dirname(__file__)
 
 class Test:
-    def __init__(self, test_name, input_filename_list, output_file):
+    def __init__(self, test_name, input_filename_list, output_file, worker_failure=False):
         self.test_name = test_name
         self.input_filename_list = [os.path.join(TEST_DIRECTORY, filename) for filename in input_filename_list]
         self.output_file = os.path.join(TEST_DIRECTORY, output_file)
+        self.worker_failure = worker_failure
 
 def upload_files(stub, filenames):
     input_location = f"irio_test:{uuid4()}"
@@ -27,6 +28,10 @@ def upload_files(stub, filenames):
 
     return input_location
 
+def delete_some_worker():
+    worker_name = subprocess.check_output("kubectl get pod | grep worker | head -n 1 | cut -d' ' -f1", shell=True).decode("utf-8").strip()
+    subprocess.check_output(f"kubectl delete pod {worker_name} --now", shell=True)
+
 def run_test(stub, test: Test) -> bool:
     input_location = upload_files(stub, test.input_filename_list)
     output_location = f"irio_test:{uuid4()}"
@@ -36,6 +41,10 @@ def run_test(stub, test: Test) -> bool:
             outputLocation=output_location
         )
     )
+
+    if test.worker_failure:
+        sleep(1)
+        delete_some_worker()
 
     while not stub.LastJobStatus(Empty()).status.finished:
         sleep(5)
@@ -62,12 +71,19 @@ def run_tests():
     host_port = sys.argv[1]
 
     tests = [Test("single_word", ["single_word_input"], "single_word_output"),
+             Test("single_word_worker_failure", ["single_word_input"], "single_word_output", worker_failure=True),
              Test("multiple_words",
                   ["multiple_words_input1", "multiple_words_input2", "multiple_words_input3"],
                   "multiple_words_output"),
+             Test("multiple_words_worker_failure",
+                  ["multiple_words_input1", "multiple_words_input2", "multiple_words_input3"],
+                  "multiple_words_output", worker_failure=True),
              Test("big_file",
                   ["big_file_input"],
-                  "big_file_output")]
+                  "big_file_output"),
+             Test("big_file_worker_failure",
+                  ["big_file_input"],
+                  "big_file_output", worker_failure=True)]
     failed_tests = []
     for test in tests:
         with grpc.insecure_channel(host_port) as channel:
