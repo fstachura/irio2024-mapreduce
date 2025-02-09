@@ -24,6 +24,8 @@ class JobPart(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     input_location: Mapped[str] = mapped_column()
     output_location: Mapped[str] = mapped_column(nullable=True)
+    range_start: Mapped[int] = mapped_column(nullable=False)
+    range_end: Mapped[int] = mapped_column(nullable=False)
     step: Mapped[str] = mapped_column()
     finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     job_id: Mapped[int] = mapped_column(ForeignKey("job.id"))
@@ -43,6 +45,7 @@ class Job(Base):
     output_location: Mapped[str] = mapped_column(String())
     job_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
     job_status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.in_progress)
+    expected_parts: Mapped[int] = mapped_column()
     # NOTE: hacky way to ensure that only one job can be in progress at the same time.
     # all null values are "unique", this should be set to null when the job is actually finished
     finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=True, unique=True)

@@ -10,6 +10,9 @@ message StartStepRequest {
     string inputLocation = 1;
     string outputLocation = 2;
     string stepId = 3;
+    // NOTE: start is inclusive, end is exclusive
+    int64 rangeStart = 4;
+    int64 rangeEnd = 5;
 }
 
 message StartStepReply {

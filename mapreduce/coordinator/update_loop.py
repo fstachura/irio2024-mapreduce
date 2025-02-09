@@ -49,7 +49,9 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
             request = StartStepRequest(
                     stepId=part.step,
                     inputLocation=part.input_location,
-                    outputLocation=output_location)
+                    outputLocation=output_location,
+                    rangeStart=part.range_start,
+                    rangeEnd=part.range_end)
             result = stub.StartStep(request)
             if result.ok:
                 # NOTE if coordinator crashes after submitting job, but before saving job to the database,
@@ -66,15 +68,17 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
         logger.exception(f"failed to submit job to worker {addr}")
 
 class UpdateContext:
-    def __init__(self, db, storage_client, get_nodes):
+    def __init__(self, db, storage_client, get_nodes, expected_parts):
         self.db = db
         self.storage_client = storage_client
         self.get_nodes = get_nodes
+        self.expected_parts = expected_parts
 
 def update(tr, ctx: UpdateContext):
     # if all parts finished, execute next step - collect all parts, pass to reducer etc
     # NOTE: it is assumed, that while multiple threads can create job parts, only a single thread (at the same time) manipulates job statuses.
     nodes = get_node_stats(ctx.get_nodes())
+    ctx.expected_parts.set(len(nodes))
     nodes_by_uuid = {stats[1].workerUuid:stats for stats in nodes}
     free_nodes = [n for n in nodes if n[1].status == WorkerStatusReply.WorkerStatusEnum.Ok]
     job = get_unfinished_job(tr)
@@ -120,6 +124,7 @@ def update(tr, ctx: UpdateContext):
             else:
                 # node went missing
                 # TODO maybe assume that the node went missing after failing to contact it three times in a row?
+                logger.info(f"worker node went missing {part.executor_node_uuid}")
                 part.executor_node_uuid = None
                 tr.commit()
                 if len(free_nodes) > 0:
