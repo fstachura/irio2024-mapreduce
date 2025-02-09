@@ -33,22 +33,25 @@ class Job:
     def is_working(self):
         return self.thread.is_alive()
 
-    def map_function(self, input_file, output_file):
+    def map_function(self, input_file, output_file, input_file_start, input_file_end):
         try:
-            with input_file.open('r') as r, output_file.open('w') as w:
-                for line in r:
-                    rgx = "(?:\\s|" + "|".join("\\" + c for c in string.punctuation) + ")+"
-                    for word in filter(len, re.split(rgx, line)):
-                        w.write(f"{word},1\n")
+            with input_file.open('rb') as r, output_file.open('w') as w:
+                r.seek(input_file_start)
+                data = r.read(input_file_end - input_file_start).decode()
+
+                rgx = "(?:\\s|" + "|".join("\\" + c for c in string.punctuation) + ")+"
+                for word in filter(len, re.split(rgx, data)):
+                    w.write(f"{word},1\n")
         except Exception as e:
             self.exception_string = repr(e)
             raise
 
-    def reduce_function(self, input_file, output_file):
+    def reduce_function(self, input_file, output_file, input_file_start, input_file_end):
         try:
             word_cnt = {}
-            with input_file.open('r') as r:
-                for line in r:
+            with input_file.open('rb') as r:
+                r.seek(input_file_start)
+                for line in r.read(input_file_end - input_file_start).decode().strip().split('\n'):
                     word, cnt = line.split(',')
                     word_cnt[word] = word_cnt.get(word, 0) + int(cnt)
 
@@ -90,11 +93,11 @@ class WorkerServiceServicerImpl(WorkerServiceServicer):
 
         match request.stepId:
             case "map":
-                self.current_job = Job(Job.map_function, (input_file, output_file))
+                self.current_job = Job(Job.map_function, (input_file, output_file, request.rangeStart, request.rangeEnd))
                 self.current_job.start()
                 return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
             case "reduce":
-                self.current_job = Job(Job.reduce_function, (input_file, output_file))
+                self.current_job = Job(Job.reduce_function, (input_file, output_file, request.rangeStart, request.rangeEnd))
                 self.current_job.start()
                 return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
             case stepId:
