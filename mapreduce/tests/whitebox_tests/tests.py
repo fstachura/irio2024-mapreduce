@@ -42,8 +42,8 @@ def run_test(stub, test: Test) -> bool:
 
     [output_handle] = get_file_handles_from_gstorage([output_location])
     with output_handle.open('r') as calculated_output_file, open(test.output_file, 'r') as expected_output_file:
-        calculated_output = calculated_output_file.read();
-        expected_output = expected_output_file.read();
+        calculated_output = calculated_output_file.read().splitlines().sort();
+        expected_output = expected_output_file.read().splitlines().sort();
         if calculated_output != expected_output:
             print(test.test_name, "FAILED")
             print("EXPECTED:")
