@@ -102,7 +102,7 @@ def update(tr, ctx: UpdateContext):
 
             elif node[1].status == WorkerStatusReply.WorkerStatusEnum.Failure:
                 # worker failed
-                logger.error(f"worker failed with {node.errorMessage}")
+                logger.error(f"worker failed with {node[1].errorMessage}")
                 restart_part(tr, part)
             elif node[1].status == WorkerStatusReply.WorkerStatusEnum.Working:
                 pass
