@@ -18,7 +18,7 @@ class Test:
         self.output_file = os.path.join(TEST_DIRECTORY, output_file)
 
 def upload_files(stub, filenames):
-    input_location = f"irio_test:{uuid4}"
+    input_location = f"irio_test:{uuid4()}"
     for filename in filenames:
         input_path = f"{input_location}/{uuid4()}"
         [input_handle] = get_file_handles_from_gstorage([input_path])
@@ -61,7 +61,10 @@ def run_tests():
         return
     host_port = sys.argv[1]
 
-    tests = [Test("single_word", ["single_word_input"], "single_word_output")]
+    tests = [Test("single_word", ["single_word_input"], "single_word_output"),
+             Test("multiple_words",
+                  ["multiple_words_input1", "multiple_words_input2", "multiple_words_input3"],
+                  "multiple_words_output")]
     failed_tests = []
     for test in tests:
         with grpc.insecure_channel(host_port) as channel:
