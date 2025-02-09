@@ -4,7 +4,7 @@ from math import ceil
 from sqlalchemy import select
 
 from .database import JobPart
-from .utils import split_on_same_elements, generate_tmp_location
+from .utils import split_on_same_elements, generate_tmp_location, format_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -25,10 +25,10 @@ def start_map(tr, storage_client, job):
     parts = []
     for blob in bucket.list_blobs(prefix=directory_name):
         if blob.name.rstrip("/") != directory_name.rstrip("/"):
-            logger.info(f"processing file in start_map {blob}")
+            logger.info(f"starting map, processing file of job {format_uuid(job.job_uuid)}")
 
             if blob.size < SMALL_FILE_SIZE or job.expected_parts == 1:
-                logger.info(f"file is small ({blob.size} bytes), processing whole {blob}")
+                logger.info(f"file is small ({blob.size} bytes), processing whole")
                 parts.append((blob.name, 0, blob.size))
             else:
                 part_size = ceil(blob.size / job.expected_parts)
@@ -51,7 +51,7 @@ def start_map(tr, storage_client, job):
                         if range_end - range_start <= 0:
                             break
 
-                        logger.info(f"dividing file into parts {blob} {range_start}-{range_end} of {blob.size}")
+                        logger.info(f"dividing file into parts {range_start}-{range_end} of {blob.size}")
                         parts.append((blob.name, range_start, range_end))
                         range_start = range_end
                         range_end += part_size
@@ -71,6 +71,8 @@ def execute_shuffle(tr, storage_client, job):
     stmt = select(JobPart).where(JobPart.step == WORDCOUNT_MAP, JobPart.job_id == job.id)
     parts = tr.execute(stmt).scalars().all()
     result = []
+
+    logger.info(f"starting shuffle of job {format_uuid(job.job_uuid)}")
 
     # NOTE doing an in memory sort and split (which technically defeats the whole purpose) for now
     for part in parts:
@@ -108,11 +110,15 @@ def execute_shuffle(tr, storage_client, job):
 
     job.current_step = WORDCOUNT_REDUCE
     tr.commit()
+
+    logger.info(f"shuffle of job {format_uuid(job.job_uuid)} finished")
     # in a transaction - if coordinator crashes, neither the transition nor job parts get saved
 
 def execute_collect(tr, storage_client, job):
     stmt = select(JobPart).where(JobPart.step == WORDCOUNT_REDUCE, JobPart.job_id == job.id)
     parts = tr.execute(stmt).scalars().all()
+
+    logger.info(f"starting collect of job {format_uuid(job.job_uuid)}")
 
     output_bucket_name, output_file = job.output_location.split(':')
     output_bucket = storage_client.bucket(output_bucket_name)
@@ -130,7 +136,7 @@ def execute_collect(tr, storage_client, job):
     job.current_step = "collect"
     job.finished = None
     tr.commit()
-    logger.info(f"job finished {job.job_uuid}")
+    logger.info(f"job {format_uuid(job.job_uuid)} finished")
 
 
 WORDCOUNT_STEPS = {

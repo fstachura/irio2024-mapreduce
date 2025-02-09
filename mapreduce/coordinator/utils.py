@@ -73,3 +73,6 @@ class AtomicInt:
         with self.lock:
             return self.cnt
 
+def format_uuid(uid):
+    return str(uid)[:8]
+

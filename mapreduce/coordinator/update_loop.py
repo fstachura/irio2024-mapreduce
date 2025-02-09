@@ -9,7 +9,7 @@ from ..proto.worker_pb2_grpc import WorkerServiceStub
 from ..proto.worker_pb2 import StartStepRequest, WorkerStatusReply
 
 from .algorithm import execute_next_step
-from .utils import generate_tmp_location, get_blob, get_unfinished_job, get_unfinished_job_parts
+from .utils import generate_tmp_location, get_blob, get_unfinished_job, get_unfinished_job_parts, format_uuid
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,11 @@ def get_node_stats(nodes):
         try:
             result = query_node(addr, node_port)
             stats.append(((addr, node_port), result))
-            logger.info(f"node status of {addr}: {result.status}, uuid: {result.workerUuid}, "
-                        f"errorMessage: {result.errorMessage}")
+            status = WorkerStatusReply.WorkerStatusEnum.keys()[result.status]
+            if result.status != WorkerStatusReply.WorkerStatusEnum.Ok:
+                logger.info(f"status of worker {addr}/{format_uuid(result.workerUuid)}: {status}")
+                if result.errorMessage:
+                    logger.info(f"node {addr}/{format_uuid(result.workerUuid)} reported error: {result.errorMessage}")
         except Exception:
             logger.exception("failed to query node " + str(addr))
 
@@ -42,7 +45,7 @@ def restart_part(tr, part):
 
 def submit_job_to_worker(tr, addr, node_port, job, part):
     try:
-        logger.info(f"attempting to submit job to worker {addr} {part.step} {part.input_location}")
+        logger.info(f"attempting to submit part {part.step} of job {format_uuid(job.job_uuid)} to worker {addr}")
         with grpc.insecure_channel(addr + ":" + node_port) as channel:
             stub = WorkerServiceStub(channel)
             output_location = generate_tmp_location(job.input_location, part.step)
@@ -60,10 +63,10 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
                 part.executor_node_uuid = result.workerUuid
                 part.output_location = output_location
                 tr.commit()
-                logger.info(f"job submitted to worker {addr} {part.executor_node_uuid}"
-                             f"{part.step} {part.input_location} {part.output_location}")
+                logger.info(f"job part {part.step} of job {format_uuid(job.job_uuid)} submitted to worker "
+                            f"{addr}/{format_uuid(part.executor_node_uuid)}")
             else:
-                logger.error(f"worker returned ok=False after attempting to submit a job {addr}")
+                logger.error(f"worker {addr}/{format_uuid(result.workerUuid)} returned ok=False after attempting to submit a job")
     except Exception:
         logger.exception(f"failed to submit job to worker {addr}")
 
@@ -97,21 +100,21 @@ def update(tr, ctx: UpdateContext):
                     # job is finished
                     part.finished = True
                     tr.commit()
-                    logger.info(f"worker finished part {part.step} {part.output_location} {part.executor_node_uuid}")
+                    logger.info(f"worker {node[0][0]}/{format_uuid(part.executor_node_uuid)} finished part {part.step}")
                 else:
                     # worker ready but file not found, restart
                     restart_part(tr, part)
-                    logger.info(f"file not found despite worker being ready {part.executor_node_uuid}"
-                                 f"{part.step} {part.output_location}")
+                    logger.info(f"file not found despite worker being ready {node[0][0]}/{format_uuid(part.executor_node_uuid)}"
+                                f"{part.step}: {part.output_location}")
 
             elif node[1].status == WorkerStatusReply.WorkerStatusEnum.Failure:
                 # worker failed
-                logger.error(f"worker failed with {node[1].errorMessage}")
+                logger.error(f"worker {node[0][0]}/{format_uuid(node[1].workerUuid)} failed with {node[1].errorMessage}")
                 restart_part(tr, part)
             elif node[1].status == WorkerStatusReply.WorkerStatusEnum.Working:
                 pass
             else:
-                logger.error(f"unknown status {node.status}")
+                logger.error(f"unknown status {node[1].status}")
 
     # assign unfinished jobs to workers
     for part in parts:
@@ -124,7 +127,7 @@ def update(tr, ctx: UpdateContext):
             else:
                 # node went missing
                 # TODO maybe assume that the node went missing after failing to contact it three times in a row?
-                logger.info(f"worker node went missing {part.executor_node_uuid}")
+                logger.info(f"worker node went missing {format_uuid(part.executor_node_uuid)}")
                 part.executor_node_uuid = None
                 tr.commit()
                 if len(free_nodes) > 0:
@@ -134,7 +137,7 @@ def update(tr, ctx: UpdateContext):
     tr.commit()
 
     if len(get_unfinished_job_parts(tr)) == 0:
-        logger.info(f"step finished {job.current_step}")
+        logger.info(f"step {job.current_step} of {format_uuid(job.job_uuid)} finished")
         execute_next_step(tr, ctx.storage_client, job)
 
 def start_update_loop(ctx: UpdateContext):
