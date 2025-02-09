@@ -1,3 +1,4 @@
+import datetime
 from time import sleep
 import logging
 import grpc
@@ -12,6 +13,8 @@ from .algorithm import execute_next_step
 from .utils import generate_tmp_location, get_blob, get_unfinished_job, get_unfinished_job_parts
 
 logger = logging.getLogger(__name__)
+
+JOB_PART_TIMEOUT = datetime.timedelta(minutes=30)
 
 def query_node(addr, node_port):
     with grpc.insecure_channel(addr + ":" + node_port) as channel:
@@ -57,6 +60,7 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
                 # coordinator does not have a way to "learn" which parts are being done from workers while recovering
                 part.executor_node_uuid = result.workerUuid
                 part.output_location = output_location
+                part.timestamp = datetime.datetime.now(datetime.timezone.utc)
                 tr.commit()
                 logger.info(f"job submitted to worker {addr} {part.executor_node_uuid}"
                              f"{part.step} {part.input_location} {part.output_location}")
@@ -85,7 +89,12 @@ def update(tr, ctx: UpdateContext):
 
     # check if any jobs were finished
     for part in parts:
-        if str(part.executor_node_uuid) in nodes_by_uuid:
+        ts = part.timestamp.replace(tzinfo=datetime.timezone.utc)
+        now = datetime.datetime.now().astimezone(datetime.timezone.utc)
+        if part.executor_node_uuid is not None and (now - ts) > JOB_PART_TIMEOUT:
+            logger.info(f"job timed out {part.step} {part.executor_node_uuid}")
+            restart_part(tr, part)
+        elif str(part.executor_node_uuid) in nodes_by_uuid:
             # job is being executed by a node
             node = nodes_by_uuid[str(part.executor_node_uuid)]
             if node[1].status == WorkerStatusReply.WorkerStatusEnum.Ok:
