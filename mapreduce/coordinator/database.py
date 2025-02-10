@@ -6,6 +6,7 @@ import enum
 import sqlalchemy
 from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class JobPart(Base):
     finished: Mapped[bool] = mapped_column(Boolean(), default=False, nullable=False)
     job_id: Mapped[int] = mapped_column(ForeignKey("job.id"))
     executor_node_uuid: Mapped[UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
 class JobStatus(enum.Enum):
     in_progress = "IN_PROGRESS"
