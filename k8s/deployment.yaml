@@ -112,6 +112,12 @@ spec:
         imagePullPolicy: Always
         command: ["python3"]
         args: ["-m", "gunicorn", "mapreduce.frontend.server", "-b", "0.0.0.0:8000"]
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: 8000
+          initialDelaySeconds: 3
+          periodSeconds: 10
         ports:
         - containerPort: 8000
         env:
