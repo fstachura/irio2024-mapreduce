@@ -7,3 +7,4 @@ psycopg2-binary~=2.9.10
 Flask~=3.1.0
 gunicorn~=23.0.0
 Flask-HTTPAuth~=4.8.0
+grpcio-health-checking~=1.70.0

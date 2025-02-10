@@ -3,6 +3,9 @@ import os
 from concurrent import futures
 import grpc
 from google.cloud import storage
+from grpc_health.v1.health import HealthServicer
+from grpc_health.v1.health_pb2 import HealthCheckResponse
+from grpc_health.v1.health_pb2_grpc import add_HealthServicer_to_server
 
 from ..proto.coordinator_pb2_grpc import add_CoordinatorServiceServicer_to_server
 
@@ -29,9 +32,17 @@ def serve():
         executor.submit(start_update_loop, UpdateContext(db, storage_client, get_nodes, expected_parts))
 
         server = grpc.server(executor)
+
         add_CoordinatorServiceServicer_to_server(
             CoordinatorServiceServicerImpl(db, default_bucket, expected_parts), server
         )
+
+        health_servicer = HealthServicer()
+        health_servicer.set("CoordinatorService", HealthCheckResponse.SERVING)
+        add_HealthServicer_to_server(
+            health_servicer, server
+        )
+
         server.add_insecure_port(port)
         server.start()
         server.wait_for_termination()
