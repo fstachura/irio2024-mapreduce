@@ -139,7 +139,7 @@ def execute_collect(tr, storage_client, job):
     logger.info(f"job {format_uuid(job.job_uuid)} finished")
 
 
-WORDCOUNT_STEPS = {
+ALGORITHM_STEPS = {
     WORDCOUNT_MAP: {
         "next": WORDCOUNT_SHUFFLE,
         "callback": start_map,
@@ -156,12 +156,12 @@ WORDCOUNT_STEPS = {
     }
 }
 
-def init_algorithm(tr, storage_client, job):
-    WORDCOUNT_STEPS[WORDCOUNT_MAP]["callback"](tr, storage_client, job)
-
 INIT_STEP = WORDCOUNT_MAP
 
+def init_algorithm(tr, storage_client, job):
+    ALGORITHM_STEPS[INIT_STEP]["callback"](tr, storage_client, job)
+
 def execute_next_step(tr, storage_client, job):
-    next_step_name = WORDCOUNT_STEPS[job.current_step]["next"]
-    WORDCOUNT_STEPS[next_step_name]["callback"](tr, storage_client, job)
+    next_step_name = ALGORITHM_STEPS[job.current_step]["next"]
+    ALGORITHM_STEPS[next_step_name]["callback"](tr, storage_client, job)
 

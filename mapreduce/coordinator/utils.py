@@ -76,3 +76,26 @@ class AtomicInt:
 def format_uuid(uid):
     return str(uid)[:8]
 
+
+CODE_CACHE = {}
+
+def save_code_to_cache(location):
+    if location not in CODE_CACHE:
+        with get_blob(location).open('r') as f:
+            code = f.read()
+            module = globals().copy()
+            exec(code, locals=module, globals=module)
+            CODE_CACHE[location] = module
+
+def init_custom_algorithm(location, tr, storage_client, job):
+    save_code_to_cache(location)
+    steps = CODE_CACHE[location]["ALGORITHM_STEPS"]
+    init = CODE_CACHE[location]["INIT_STEP"]
+    steps[init]["callback"](tr, storage_client, job)
+
+def execute_next_custom_step(location, tr, storage_client, job):
+    save_code_to_cache(location)
+    steps = CODE_CACHE[location]["ALGORITHM_STEPS"]
+    next_step_name = steps[job.current_step]["next"]
+    steps[next_step_name]["callback"](tr, storage_client, job)
+

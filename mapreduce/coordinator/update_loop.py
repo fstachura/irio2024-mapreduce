@@ -10,7 +10,7 @@ from ..proto.worker_pb2_grpc import WorkerServiceStub
 from ..proto.worker_pb2 import StartStepRequest, WorkerStatusReply
 
 from .algorithm import execute_next_step
-from .utils import generate_tmp_location, get_blob, get_unfinished_job, get_unfinished_job_parts, format_uuid
+from .utils import generate_tmp_location, get_blob, get_unfinished_job, get_unfinished_job_parts, format_uuid, execute_next_custom_step
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,8 @@ def submit_job_to_worker(tr, addr, node_port, job, part):
                     inputLocation=part.input_location,
                     outputLocation=output_location,
                     rangeStart=part.range_start,
-                    rangeEnd=part.range_end)
+                    rangeEnd=part.range_end,
+                    workerCodeLocation=job.worker_code_location)
             result = stub.StartStep(request)
             if result.ok:
                 # NOTE if coordinator crashes after submitting job, but before saving job to the database,
@@ -146,8 +147,11 @@ def update(tr, ctx: UpdateContext):
     tr.commit()
 
     if len(get_unfinished_job_parts(tr)) == 0:
-        logger.info(f"step {job.current_step} of {format_uuid(job.job_uuid)} finished")
-        execute_next_step(tr, ctx.storage_client, job)
+        logger.info(f"step finished {job.current_step}")
+        if job.coordinator_code_location:
+            execute_next_custom_step(job.coordinator_code_location, tr, ctx.storage_client, job)
+        else:
+            execute_next_step(tr, ctx.storage_client, job)
 
 def start_update_loop(ctx: UpdateContext):
     while True:

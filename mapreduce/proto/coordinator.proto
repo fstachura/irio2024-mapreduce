@@ -10,6 +10,8 @@ service CoordinatorService {
 message StartJobRequest {
     string inputLocation = 1;
     string outputLocation = 2;
+    string coordinatorCodeLocation = 3;
+    string workerCodeLocation = 4;
 }
 
 message StartJobReply {
@@ -31,9 +33,10 @@ message LastJobStatusReply {
 
 message UploadFilesRequest {
     int32 numberOfFiles = 1;
+    bool withoutDirectory = 2;
 }
 
 message UploadFilesReply {
-    string inputLocation = 1;
+    repeated string inputLocation = 1;
     repeated string uploadUrls = 2;
 }

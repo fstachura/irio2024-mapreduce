@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from ..proto.coordinator_pb2 import LastJobStatusReply, StartJobReply, UploadFilesReply
 from ..proto.coordinator_pb2_grpc import CoordinatorServiceServicer, add_CoordinatorServiceServicer_to_server
 from .database import Job, JobPart
-from .algorithm import init_algorithm, INIT_STEP
-from .utils import generate_upload_url
+from .algorithm import INIT_STEP, init_algorithm
+from .utils import generate_upload_url, init_custom_algorithm
 
 
 class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
@@ -23,12 +23,17 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
             job = Job(input_location=request.inputLocation,
                       output_location=request.outputLocation,
                       current_step=INIT_STEP,
+                      coordinator_code_location=request.coordinatorCodeLocation,
+                      worker_code_location=request.workerCodeLocation,
                       expected_parts=max(self.expected_parts.get(), 1))
             tr.add(job)
             tr.flush()
             tr.refresh(job)
 
-            init_algorithm(tr, storage_client, job)
+            if request.coordinatorCodeLocation:
+                init_custom_algorithm(request.coordinatorCodeLocation, tr, storage_client, job)
+            else:
+                init_algorithm(tr, storage_client, job)
 
             return StartJobReply(jobUuid=str(job.job_uuid))
 
@@ -56,8 +61,13 @@ class CoordinatorServiceServicerImpl(CoordinatorServiceServicer):
         return LastJobStatusReply(status=status)
 
     def UploadFiles(self, request, context):
-        dir_uuid = uuid4()
-        filenames = [f"{dir_uuid}/{uuid4()}" for _ in range(request.numberOfFiles)]
-        urls = [generate_upload_url(self.bucket_name, f) for f in filenames]
-        return UploadFilesReply(uploadUrls=urls, inputLocation=f"{self.bucket_name}:{dir_uuid}")
+        if not request.withoutDirectory:
+            dir_uuid = uuid4()
+            filenames = [f"{dir_uuid}/{uuid4()}" for _ in range(request.numberOfFiles)]
+            urls = [generate_upload_url(self.bucket_name, f) for f in filenames]
+            return UploadFilesReply(uploadUrls=urls, inputLocation=[f"{self.bucket_name}:{dir_uuid}"])
+        else:
+            filenames = [f"{uuid4()}" for _ in range(request.numberOfFiles)]
+            urls = [generate_upload_url(self.bucket_name, f) for f in filenames]
+            return UploadFilesReply(uploadUrls=urls, inputLocation=[f"{self.bucket_name}:{f}" for f in filenames])
 
