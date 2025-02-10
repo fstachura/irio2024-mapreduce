@@ -111,7 +111,7 @@ spec:
         image: "us-central1-docker.pkg.dev/mapreduce-irio/main/mapreduce:dev"
         imagePullPolicy: Always
         command: ["python3"]
-        args: ["-m", "gunicorn", "mapreduce.frontend.server", "-b", "0.0.0.0:8000"]
+        args: ["-m", "gunicorn", "mapreduce.frontend.server", "--access-logfile", "-", "-b", "0.0.0.0:8000"]
         livenessProbe:
           httpGet:
             path: /healthcheck
