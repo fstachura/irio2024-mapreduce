@@ -64,6 +64,10 @@ def index():
     last_job = get_status(app.config["COORDINATOR_ADDR"])
     return render_template("index.html", last_job=last_job)
 
+@app.route("/healthcheck")
+def healthcheck():
+    return "ok"
+
 @app.route("/download_last")
 @auth.login_required
 def download_last():
