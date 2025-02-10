@@ -6,7 +6,7 @@ import uuid
 from mapreduce.proto import worker_pb2
 from mapreduce.proto.worker_pb2_grpc import WorkerServiceServicer
 from mapreduce.worker.algorithm import STEP_ID_TO_FUNCTION
-from .utils import get_file_handles_from_gstorage
+from .utils import CODE_CACHE, get_file_handles_from_gstorage, save_code_to_cache
 
 class Job:
     class JobStatus(Enum):
@@ -14,8 +14,13 @@ class Job:
         WORKING = auto()
         FAILED = auto()
 
-    def __init__(self, stepId, args):
-        self.thread = threading.Thread(target=self.wrapper_function, args=(STEP_ID_TO_FUNCTION[stepId], args))
+    def __init__(self, stepId, args, workerCodeLocation):
+        if workerCodeLocation:
+            save_code_to_cache(workerCodeLocation)
+            self.thread = threading.Thread(target=self.wrapper_function,
+                                           args=(CODE_CACHE[workerCodeLocation]["STEP_ID_TO_FUNCTION"][stepId], args))
+        else:
+            self.thread = threading.Thread(target=self.wrapper_function, args=(STEP_ID_TO_FUNCTION[stepId], args))
         self.exception_string = None
 
     def status(self):
@@ -68,7 +73,7 @@ class WorkerServiceServicerImpl(WorkerServiceServicer):
             [request.inputLocation, request.outputLocation]
         )
 
-        self.current_job = Job(request.stepId, (input_file, output_file, request.rangeStart, request.rangeEnd))
+        self.current_job = Job(request.stepId, (input_file, output_file, request.rangeStart, request.rangeEnd), request.workerCodeLocation)
         self.current_job.start()
         return worker_pb2.StartStepReply(ok=True, workerUuid=self.workerUuid)
 
