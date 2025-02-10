@@ -31,7 +31,13 @@
                 {% if last_job.status.finished %}<a href="/download_last">download</a>{% endif %}</div>
         </div>
         <a href="/">refresh</a>
-        <h3>{{ msg }}</h3>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for msg in messages %}
+                    <h3>{{ msg }}</h3>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         <form id="form" action="/start" method="POST" enctype="multipart/form-data">
             <h4>upload files to start a job</h4>
             <div class="form-input">

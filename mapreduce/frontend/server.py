@@ -2,7 +2,7 @@ import os
 import grpc
 import requests
 import logging
-from flask import Flask, render_template, request, redirect, send_file
+from flask import Flask, render_template, request, redirect, send_file, flash
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
 from google.protobuf.empty_pb2 import Empty
@@ -24,6 +24,7 @@ def verify_password(username, password):
 
 app = Flask(__name__)
 app.config["COORDINATOR_ADDR"] = os.environ.get("COORDINATOR_ADDR", "coordinator.default.svc.cluster.local")
+app.secret_key = os.environ.get("SECRET_KEY")
 
 def get_status(coordinator_addr):
     with grpc.insecure_channel(coordinator_addr) as channel:
@@ -57,14 +58,11 @@ def upload_code_file(code):
     else:
         return upload_result.inputLocation[0], None
 
-def generate_index(msg=""):
-    last_job = get_status(app.config["COORDINATOR_ADDR"])
-    return render_template("index.html", last_job=last_job, msg=msg)
-
 @app.route("/")
 @auth.login_required
 def index():
-    return generate_index()
+    last_job = get_status(app.config["COORDINATOR_ADDR"])
+    return render_template("index.html", last_job=last_job)
 
 @app.route("/download_last")
 @auth.login_required
@@ -75,7 +73,8 @@ def download_last():
     bucket = storage_client.bucket(bucket_name)
     blob = bucket.get_blob(filename)
     if blob is None:
-        return generate_index("output file is not ready yet")
+        flash("output file is not ready yet")
+        return redirect("/")
 
     return send_file(blob.open('rb'), as_attachment=True, download_name="mapreduce_output")
 
@@ -114,12 +113,15 @@ def start():
                 coordinator_code_location,
                 worker_code_location,
             )
-            return generate_index("files uploaded successfully, job started. inputlocation: " + uploadResult.inputLocation[0])
+            flash("files uploaded successfully, job started. inputlocation: " + uploadResult.inputLocation[0])
+            return redirect("/")
         except Exception:
             logging.exception("failed to start job")
-            return generate_index("failed to start job, check logs")
+            flash("failed to start job, check logs")
+            return redirect("/")
     else:
-        return generate_index("failed to upload some files: " + str(failed))
+        flash("failed to upload some files: " + str(failed))
+        return redirect("/")
 
 application = app
 
