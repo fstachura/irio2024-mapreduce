@@ -7,10 +7,21 @@
         html {
             font-family: helvetica;
         }
+
+        #form {
+            width: max(35vw, 200px);
+        }
+
+        .form-input {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
         </style>
     </head>
     <body>
-        <h3>status</h3> 
+        <h3>status</h3>
         <div>
             <div>jobUuid: {{ last_job.status.jobUuid }}</div>
             <div>finished: {{ last_job.status.finished }}</div>
@@ -21,9 +32,20 @@
         </div>
         <a href="/">refresh</a>
         <h3>{{ msg }}</h3>
-        <form action="/start" method="POST" enctype="multipart/form-data">
+        <form id="form" action="/start" method="POST" enctype="multipart/form-data">
             <h4>upload files to start a job</h4>
-            <input type="file" id="file" name="file" multiple required/>
+            <div class="form-input">
+                <b>input files: </b>
+                <input type="file" id="file" name="file" multiple required/>
+            </div>
+            <div class="form-input">
+                <b>custom coordinator code (optional): </b>
+                <input type="file" id="coordinator_code_file" name="coordinator_code_file"/>
+            </div>
+            <div class="form-input">
+                <b>custom worker code (optional): </b>
+                <input type="file" id="worker_code_file" name="worker_code_file"/>
+            </div>
             <input type="submit" value="start job">
         </form>
     </body>

@@ -8,6 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from google.protobuf.empty_pb2 import Empty
 from google.cloud import storage
 
+from mapreduce import worker
+
 from ..proto import coordinator_pb2
 from ..proto import coordinator_pb2_grpc
 
@@ -28,20 +30,32 @@ def get_status(coordinator_addr):
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
         return stub.LastJobStatus(Empty())
 
-def get_file_upload_url(coordinator_addr, num):
+def get_file_upload_url(coordinator_addr, num, direct=False):
     with grpc.insecure_channel(coordinator_addr) as channel:
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
-        return stub.UploadFiles(coordinator_pb2.UploadFilesRequest(numberOfFiles=num))
+        return stub.UploadFiles(coordinator_pb2.UploadFilesRequest(numberOfFiles=num, withoutDirectory=direct))
 
-def start_job(coordinator_addr, input_location):
+def start_job(coordinator_addr, input_location, coordinator_code_location, worker_code_location):
     with grpc.insecure_channel(coordinator_addr) as channel:
         stub = coordinator_pb2_grpc.CoordinatorServiceStub(channel)
         result = stub.StartJob(
                 coordinator_pb2.StartJobRequest(
                     inputLocation=input_location,
-                    outputLocation=input_location.rstrip("/") + "_output"
+                    outputLocation=input_location.rstrip("/") + "_output",
+                    coordinatorCodeLocation=coordinator_code_location,
+                    workerCodeLocation=worker_code_location,
                 )
             )
+
+def upload_code_file(code):
+    upload_result = get_file_upload_url(app.config["COORDINATOR_ADDR"], 1, True)
+    result = requests.put(upload_result.uploadUrls[0],
+                          code.read(),
+                          headers={'Content-Type': 'application/octet-stream'})
+    if result.status_code != 200:
+        return None, result
+    else:
+        return upload_result.inputLocation[0], None
 
 def generate_index(msg=""):
     last_job = get_status(app.config["COORDINATOR_ADDR"])
@@ -69,9 +83,23 @@ def download_last():
 @auth.login_required
 def start():
     files = request.files.getlist("file")
+    coordinator_code = request.files.get("coordinator_code_file")
+    worker_code = request.files.get("worker_code_file")
+    coordinator_code_location, worker_code_location = None, None
+
+    failed = []
+
+    if coordinator_code is not None and len(coordinator_code.filename) != 0:
+        coordinator_code_location, upload_result = upload_code_file(coordinator_code)
+        if upload_result is not None:
+            failed.append((coordinator_code.filename, upload_result.status_code, upload_result.text))
+
+    if worker_code is not None and len(worker_code.filename) != 0:
+        worker_code_location, upload_result = upload_code_file(worker_code)
+        if upload_result is not None:
+            failed.append((worker_code.filename, upload_result.status_code, upload_result.text))
 
     uploadResult = get_file_upload_url(app.config["COORDINATOR_ADDR"], len(files))
-    failed = []
 
     for (f, url) in zip(files, uploadResult.uploadUrls):
         result = requests.put(url, f.read(), headers={'Content-Type': 'application/octet-stream'})
@@ -80,8 +108,13 @@ def start():
 
     if len(failed) == 0:
         try:
-            start_job(app.config["COORDINATOR_ADDR"], uploadResult.inputLocation)
-            return generate_index("files uploaded successfully, job started. inputlocation: " + uploadResult.inputLocation)
+            start_job(
+                app.config["COORDINATOR_ADDR"],
+                uploadResult.inputLocation[0],
+                coordinator_code_location,
+                worker_code_location,
+            )
+            return generate_index("files uploaded successfully, job started. inputlocation: " + uploadResult.inputLocation[0])
         except Exception:
             logging.exception("failed to start job")
             return generate_index("failed to start job, check logs")
