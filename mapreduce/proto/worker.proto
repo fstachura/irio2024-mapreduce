@@ -13,6 +13,7 @@ message StartStepRequest {
     // NOTE: start is inclusive, end is exclusive
     int64 rangeStart = 4;
     int64 rangeEnd = 5;
+    string workerCodeLocation = 6;
 }
 
 message StartStepReply {

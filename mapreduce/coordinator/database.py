@@ -4,7 +4,7 @@ from typing import List
 import uuid
 import enum
 import sqlalchemy
-from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum
+from sqlalchemy import UUID, Boolean, ForeignKey, String, Enum, null
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 
@@ -45,6 +45,8 @@ class Job(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     input_location: Mapped[str] = mapped_column(String())
     output_location: Mapped[str] = mapped_column(String())
+    coordinator_code_location: Mapped[str] = mapped_column(String(), nullable=True)
+    worker_code_location: Mapped[str] = mapped_column(String(), nullable=True)
     job_uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
     job_status: Mapped[JobStatus] = mapped_column(Enum(JobStatus), default=JobStatus.in_progress)
     expected_parts: Mapped[int] = mapped_column()
